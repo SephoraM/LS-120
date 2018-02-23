@@ -89,74 +89,6 @@ class AllMoves
   end
 end
 
-class AI
-  MOVES = ['scissors', 'rock', 'paper', 'lizard', 'spock']
-end
-
-# R2d2 doubles the odds of picking a move that has not lost more than 60%
-# of the time when it was played
-class R2d2 < AI
-  def name
-    'R2D2'
-  end
-
-  def choices(past_moves)
-    moves = past_moves.list
-    losses = past_moves.losses
-
-    MOVES.each_with_object([]) do |e, arr|
-      moves.count(e) * 0.6 > losses.count(e) ? 2.times { arr << e } : arr << e
-    end
-  end
-end
-
-# Hal doubles the odds of picking the last move if it lost
-class Hal < AI
-  def name
-    'Hal'
-  end
-
-  def choices(past_moves)
-    last_move = past_moves.list.last
-    last_loser = past_moves.losses.last
-
-    last_move == last_loser ? MOVES + [last_loser] : MOVES
-  end
-end
-
-# Chappie never picks lizard or spock
-class Chappie < AI
-  def name
-    'Chappie'
-  end
-
-  def choices
-    MOVES[0, 3]
-  end
-end
-
-# Sonny has three times the odds of picking spock and never picks scissors
-class Sonny < AI
-  def name
-    'Sonny'
-  end
-
-  def choices
-    MOVES[1..-1].concat(['spock', 'spock'])
-  end
-end
-
-# Number 5 plays with even odds across the board
-class Number5 < AI
-  def name
-    'Number 5'
-  end
-
-  def choices
-    MOVES
-  end
-end
-
 class Player
   attr_accessor :move, :name, :score
 
@@ -166,11 +98,11 @@ class Player
   end
 
   def reset
-    @score = 0
+    self.score = 0
   end
 
   def add_point
-    @score += 1
+    self.score += 1
   end
 end
 
@@ -180,7 +112,7 @@ class Human < Player
     loop do
       puts "What's your name?"
       n = gets.chomp
-      break unless n.empty?
+      break unless n.strip.empty?
       puts "Sorry, you must enter a value."
     end
     self.name = n.capitalize
@@ -190,42 +122,88 @@ class Human < Player
     choice = nil
     loop do
       puts "Do you choose rock, paper, spock, lizard, or scissors?"
-      choice = gets.chomp
-      break if Move::VALUES.keys.include? choice.downcase
+      choice = gets.chomp.downcase
+      break if Move::VALUES.keys.include? choice
       puts "Sorry. Invalid choice! Try Again."
     end
-    self.move = Move.new(choice.downcase)
+    self.move = Move.new(choice)
   end
 end
 
 class Computer < Player
-  attr_accessor :personality
-
-  def set_personality
-    self.personality = [R2d2, Hal, Chappie, Sonny, Number5].sample.new
-  end
+  MOVES = ['scissors', 'rock', 'paper', 'lizard', 'spock']
+  attr_accessor :plays, :losses
 
   def set_name
-    set_personality
-    self.name = personality.name
+    self.name = name
   end
 
   def choose(past_moves)
-    self.move = if name == 'R2D2' || name == 'Hal'
-                  Move.new(personality.choices(past_moves).sample)
-                else
-                  Move.new(personality.choices.sample)
-                end
+    self.plays = past_moves.list
+    self.losses = past_moves.losses
+    self.move = Move.new(choices.sample)
+  end
+end
+
+class R2d2 < Computer
+  def name
+    'R2D2'
+  end
+
+  def choices
+    MOVES.each_with_object([]) do |e, arr|
+      plays.count(e) * 0.6 > losses.count(e) ? 2.times { arr << e } : arr << e
+    end
+  end
+end
+
+class Hal < Computer
+  def name
+    'Hal'
+  end
+
+  def choices
+    plays.last == losses.last ? MOVES + [losses.last] : MOVES
+  end
+end
+
+class Chappie < Computer
+  def name
+    'Chappie'
+  end
+
+  def choices
+    MOVES[0, 3]
+  end
+end
+
+class Sonny < Computer
+  def name
+    'Sonny'
+  end
+
+  def choices
+    MOVES[1..-1].concat(['spock', 'spock'])
+  end
+end
+
+class Number5 < Computer
+  def name
+    'Number 5'
+  end
+
+  def choices
+    MOVES
   end
 end
 
 class RPSGame
-  TARGET = 10
+  TARGET = 3
   attr_accessor :human, :computer, :computer_moves, :human_moves
 
   def initialize
     @human = Human.new
-    @computer = Computer.new
+    @computer = [R2d2, Hal, Chappie, Sonny, Number5].sample.new
     @human_moves = AllMoves.new
     @computer_moves = AllMoves.new
     clear
@@ -234,6 +212,7 @@ class RPSGame
   def display_welcome_message
     puts "Hi, #{human.name}. Welcome to Rock, Paper, Scissors, Lizard, Spock!"
     puts "Today you'll be playing against #{computer.name}\n\n"
+    puts "Win #{TARGET} games to be the grand winner! Good Luck!\n\n"
   end
 
   def display_goodbye_message
@@ -260,8 +239,7 @@ class RPSGame
          "#{computer.name} has won #{computer.score} games.\n\n"
   end
 
-  def display_stats
-    display_score
+  def display_all_moves
     puts "#{human.name}'s moves so far: #{human_moves.list.join(', ')}"
     puts "#{computer.name}'s moves so far: #{computer_moves.list.join(', ')}"
     puts # adding a newline
@@ -269,6 +247,7 @@ class RPSGame
 
   def display_grand_winner(name)
     puts "#{name} won #{TARGET} games and is the grand winner of the match!\n\n"
+    display_all_moves
     puts "We should have a rematch..."
   end
 
@@ -315,11 +294,11 @@ class RPSGame
     answer = ''
     loop do
       puts "Do you want to play again? (y/n)"
-      answer = gets.chomp
-      break if ['y', 'n'].include? answer.downcase
+      answer = gets.chomp.downcase
+      break if ['y', 'n'].include? answer
       puts "Sorry, must be y or n."
     end
-    !!(answer.downcase == 'y')
+    answer == 'y'
   end
 
   def clear
@@ -335,7 +314,7 @@ class RPSGame
       display_winner
       keep_score
       record_moves
-      display_stats
+      display_score
       end_current_match if target_reached?
       break unless play_again?
       clear
