@@ -82,3 +82,9 @@ puts donut4
 
 puts donut5
 #  => "Custard with icing"
+
+# 6. Nothing, though the implementations are different (better not to use self
+#    unless it's needed -- Ruby's style guide)
+
+# 7. I would just name it information because this is called on the class and
+#    the class name is Light so calling it light_information is redundant
