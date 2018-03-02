@@ -20,19 +20,21 @@ end
 
 # 2.
 module Rangeable
+  attr_accessor :speed, :heading
+  attr_writer :km_traveled_per_liter, :liters_of_fuel_capacity
+
   def range
     @fuel_capacity * @fuel_efficiency
   end
 end
 
 class WheeledVehicle
-  attr_accessor :speed, :heading
   include Rangeable
 
   def initialize(tire_array, km_traveled_per_liter, liters_of_fuel_capacity)
     @tires = tire_array
-    @fuel_efficiency = km_traveled_per_liter
-    @fuel_capacity = liters_of_fuel_capacity
+    self.fuel_efficiency = km_traveled_per_liter
+    self.fuel_capacity = liters_of_fuel_capacity
   end
 
   def tire_pressure(tire_index)
@@ -59,7 +61,7 @@ class Motorcycle < WheeledVehicle
 end
 
 class Catamaran
-  attr_accessor :propeller_count, :hull_count, :speed, :heading
+  attr_accessor :propeller_count, :hull_count
   include Rangeable
 
   def initialize(num_propellers, num_hulls, km_traveled_per_liter, liters_of_fuel_capacity)
@@ -67,4 +69,9 @@ class Catamaran
   end
 end
 
-p Motorcycle.new.range
+# 3. I would make a WaterVehicles class for any shared behavior and state. Then,
+# I would sub-class Catamaran and Motorboat from it.
+
+# 4. Within my WaterVehicles class, I would redefine a range method. I would
+# return the returned value of calling the original range method (with super)
+# plus 10
