@@ -122,9 +122,7 @@ class Square
 end
 
 class Player
-  HUMAN_MARKER = "X"
-  COMPUTER_MARKER = "O"
-  attr_reader :marker
+  attr_reader :marker, :name
 
   def initialize(marker)
     @marker = marker
@@ -132,20 +130,38 @@ class Player
 end
 
 class Human < Player
-  def initialize
-    super(HUMAN_MARKER)
+  def initialize(marker)
+    super(marker)
+    @name = choose_name
+  end
+
+  def choose_name
+    name = nil
+    loop do
+      puts "Before we begin, what's your name?"
+      name = gets.chomp
+      break unless name.strip.empty?
+      puts "Invalid input. Please give me a name."
+    end
+    name.capitalize
   end
 end
 
 class AI < Player
-  def initialize()
-    super(COMPUTER_MARKER)
+  AI_NAMES = ['Hal', 'Sonny', 'R2D2', 'Wall-e']
+
+  def initialize(marker, other_marker)
+    super(marker)
+    @human_marker = other_marker
+    @name = AI_NAMES.sample
   end
 
   def move(board)
     @board = CurrentBoard.new(board)
     strategic_move
   end
+
+  private
 
   def winning_move(marker)
     @board.unmarked_keys.each do |key|
@@ -158,15 +174,17 @@ class AI < Player
 
   def strategic_move
     winning_move(marker) ||
-    winning_move(HUMAN_MARKER) ||
-    (5 if @board.unmarked_keys.include?(5)) ||
-    @board.unmarked_keys.sample
+      winning_move(@human_marker) ||
+      (5 if @board.unmarked_keys.include?(5)) ||
+      @board.unmarked_keys.sample
   end
 end
 
 class TTTGame
   include Joinable
 
+  MARKER1 = "X"
+  MARKER2 = "O"
   TARGET_WINS = 5
   FIRST_PLAYER = 'choose'
   attr_reader :board, :human, :computer, :human_score, :computer_score
@@ -174,8 +192,6 @@ class TTTGame
 
   def initialize
     @board = Board.new
-    @human = Human.new
-    @computer = AI.new
     @human_score = Score.new
     @computer_score = Score.new
   end
@@ -202,14 +218,42 @@ class TTTGame
     clear
   end
 
-  def set_first_player
+  def determine_first_player
     choose_first_player if FIRST_PLAYER == 'choose'
     self.current_player = computer.marker if FIRST_PLAYER == 'computer'
     self.current_player = human.marker if FIRST_PLAYER == 'player'
   end
 
+  def choose_human_marker
+    marker = nil
+    loop do
+      puts "Would you like to be #{MARKER1} or #{MARKER2}?"
+      marker = gets.chomp.upcase
+      break if [MARKER1, MARKER2].include?(marker)
+      puts "Invalid input. Please type #{MARKER1} or #{MARKER2}."
+    end
+    puts "You chose #{marker}. Nice one!\n\n"
+    marker
+  end
+
+  def computer_marker(human_marker)
+    human_marker == MARKER1 ? MARKER2 : MARKER1
+  end
+
+  def initialize_players
+    choice = choose_human_marker
+    @human = Human.new(choice)
+    @computer = AI.new(computer_marker(choice), choice)
+  end
+
   def display_welcome_message
     puts "Welcome to Tic Tac Toe!"
+    puts
+  end
+
+  def display_personalized_welcome_message
+    puts "Hello #{human.name}. Your AI opponent today is #{computer.name}.\n\n"
+    puts "Let's play some Tic Tac Toe!"
     puts "The first player to win #{TARGET_WINS} games is the grand winner!"
     puts
   end
@@ -219,7 +263,8 @@ class TTTGame
   end
 
   def display_board
-    puts "You're a #{human.marker}. Computer is a #{computer.marker}"
+    puts "#{human.name} is a #{human.marker}." \
+         " #{computer.name} is a #{computer.marker}"
     puts ""
     board.draw
     puts ""
@@ -239,22 +284,25 @@ class TTTGame
     clear_screen_and_display_board
 
     case board.winning_marker
-    when human.marker    then puts "You won!"
-    when computer.marker then puts "Computer won!"
+    when human.marker    then puts "#{human.name} won!"
+    when computer.marker then puts "#{computer.name} won!"
     else                      puts "It's a tie!"
     end
   end
 
   def display_grand_winner
     puts "*** We have a grand winner!!! ***"
-    msg = "won #{TARGET_WINS} games! How about a rematch?"
-    puts human_score.grand_winner? ? "You #{msg}" : "Computer #{msg}"
+    if human_score.grand_winner?
+      puts "#{human.name} won #{TARGET_WINS} games! How about a rematch?"
+    else
+      puts "#{computer.name} won #{TARGET_WINS} games! How about a rematch?"
+    end
     puts ""
   end
 
   def display_scores
-    puts "Your wins: #{human_score.points}" \
-         "  |  Computer wins: #{computer_score.points}"
+    puts "#{human.name} wins: #{human_score.points}" \
+         "  |  #{computer.name} wins: #{computer_score.points}"
     puts ""
     display_grand_winner if grand_winner?
   end
@@ -313,29 +361,48 @@ class TTTGame
     answer == 'y'
   end
 
+  def terminal_game_state?
+    board.someone_won? || board.full?
+  end
+
+  def opening_sequence
+    clear
+    display_welcome_message
+    initialize_players
+    clear
+    display_personalized_welcome_message
+  end
+
+  def display_result_and_score_sequence
+    display_result
+    keep_score
+    display_scores
+  end
+
+  def reset
+    reset_score if grand_winner?
+    board.reset
+    clear
+  end
+
   public
 
   def play
-    clear
-    display_welcome_message
+    opening_sequence
 
     loop do
-      set_first_player
+      determine_first_player
       display_board
 
       loop do
         current_player_moves
-        break if board.someone_won? || board.full?
+        break if terminal_game_state?
 
         clear_screen_and_display_board if human_turn?
       end
-      display_result
-      keep_score
-      display_scores
+      display_result_and_score_sequence
       break unless play_again?
-      reset_score if grand_winner?
-      board.reset
-      clear
+      reset
       display_play_again_message
     end
     display_goodbye_message
