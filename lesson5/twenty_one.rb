@@ -1,12 +1,18 @@
+module Clearable
+  def clear
+    system('clear') || system('cls')
+  end
+end
+
 class Participant
   attr_reader :hand
 
   def initialize
-    @hand = []
+    reset
   end
 
   def hit(card)
-    @hand << card
+    hand << card
   end
 
   def busted?
@@ -14,7 +20,7 @@ class Participant
   end
 
   def card_values
-    @hand.map(&:actual_value)
+    hand.map(&:actual_value)
   end
 
   def any_aces?
@@ -32,9 +38,22 @@ class Participant
   def two_totals?
     small_total != total
   end
+
+  def winner?(other)
+    total > other.total && !busted?
+  end
+
+  def tie?(other)
+    total == other.total
+  end
+
+  def reset
+    @hand = []
+  end
 end
 
 class Player < Participant
+  include Clearable
   attr_reader :name
 
   def initialize
@@ -43,6 +62,7 @@ class Player < Participant
   end
 
   def username
+    clear
     name = nil
     puts "Heya!"
     loop do
@@ -56,8 +76,8 @@ class Player < Participant
 end
 
 class Dealer < Participant
-  def at_least_seventeen?
-    total > 17
+  def under_eighteen?
+    total < 18
   end
 end
 
@@ -76,7 +96,7 @@ class Deck
 
   def reset
     @cards = []
-    CARDS.each { |suit, vals| vals.each { |v| @cards << Card.new(suit, v) } }
+    CARDS.each { |suit, vals| vals.each { |v| cards << Card.new(suit, v) } }
   end
 
   def deal
@@ -106,16 +126,13 @@ class Card
 end
 
 class Game
+  include Clearable
   attr_reader :player, :dealer, :deck
 
   def initialize
     @player = Player.new
     @dealer = Dealer.new
     @deck = Deck.new
-  end
-
-  def clear
-    system('clear') || system('cls')
   end
 
   def deal_cards
@@ -130,9 +147,23 @@ class Game
     puts "Good Luck! Let's begin.\n\n"
   end
 
+  def display_goodbye_message
+    clear
+    puts "Goodbye, #{player.name}! Thanks for playing.\n\n"
+  end
+
   def display_dealers_first_card
-    puts ">> The dealer's card: #{dealer.hand[0]}"
+    puts ">> The dealer's card: #{dealer.hand.first}"
     puts ""
+  end
+
+  def display_dealers_last_card
+    puts ">> The dealer's newest card: #{dealer.hand.last}"
+    puts ""
+  end
+
+  def display_dealers_cards
+    puts ">> Dealer's cards: #{dealer.hand.map { |card| card }.join(', ')}\n\n"
   end
 
   def display_players_cards
@@ -145,18 +176,37 @@ class Game
     display_players_cards
   end
 
-  def display_possible_totals
-    if player.two_totals?
-      puts "Having an ace has given #{player.name} two possible values: " \
-           "#{player.small_total} or #{player.total}\n\n"
-    else
-      puts "The total value of #{player.name}'s cards: #{player.total}\n\n"
-    end
+  def display_all_cards
+    display_players_cards
+    display_dealers_cards
+  end
+
+  def display_two_totals
+    puts "Having an ace has given #{player.name} two possible values: " \
+         "#{player.small_total} or #{player.total}\n\n"
+  end
+
+  def display_players_total
+    puts "The total value of #{player.name}'s cards: #{player.total}\n\n"
+  end
+
+  def display_dealers_total
+    puts "The total value of the dealer's cards: #{dealer.total}\n\n"
+  end
+
+  def display_cards_and_players_total
+    show_initial_cards
+    player.two_totals? ? display_two_totals : display_players_total
+  end
+
+  def display_cards_and_both_totals
+    display_all_cards
+    display_players_total
+    display_dealers_total
   end
 
   def player_turn
     loop do
-      display_possible_totals
       answer = nil
       loop do
         puts "Do you want to stay or hit? (s/h)"
@@ -166,18 +216,75 @@ class Game
       end
       break if answer == 's'
       player.hit(deck.deal)
+      clear
+      display_cards_and_players_total
       break if player.busted?
     end
+  end
+
+  def dealer_turn
+    clear
+    display_cards_and_both_totals
+    loop do
+      break unless dealer.under_eighteen?
+      puts "...The dealer is dealt another card...\n\n"
+      dealer.hit(deck.deal)
+      display_dealers_last_card
+      display_dealers_total
+    end
+  end
+
+  def result
+    if dealer.winner?(player) || player.busted?
+      "*** The Dealer Won! ***"
+    elsif player.winner?(dealer) || dealer.busted?
+      "*** #{player.name} Won! ***"
+    else
+      "*** It's a tie! ***"
+    end
+  end
+
+  def busted_msg
+    player.busted? ? "#{player.name} is Bust!\n\n" : "Dealer is Bust!\n\n"
+  end
+
+  def show_result
+    puts busted_msg if player.busted? || dealer.busted?
+    puts result
+    puts ""
+  end
+
+  def play_again?
+    answer = nil
+    loop do
+      puts "Do you want to play again? (y/n)"
+      answer = gets.chomp.downcase
+      break if ['y', 'n'].include?(answer)
+      puts "Invalid input! Type y or n."
+    end
+    answer == 'y'
+  end
+
+  def reset
+    clear
+    dealer.reset
+    player.reset
+    deck.reset
   end
 
   def start
     clear
     display_welcome_message
-    deal_cards
-    show_initial_cards
-    player_turn
-    # dealer_turn
-    # show_result
+    loop do
+      deal_cards
+      display_cards_and_players_total
+      player_turn
+      dealer_turn unless player.busted?
+      show_result
+      break unless play_again?
+      reset
+    end
+    display_goodbye_message
   end
 end
 
