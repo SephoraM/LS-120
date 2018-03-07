@@ -227,11 +227,12 @@ class Game
     display_cards_and_both_totals
     loop do
       break unless dealer.under_eighteen?
-      puts "...The dealer is dealt another card...\n\n"
+      puts "...The dealer hits...\n\n"
       dealer.hit(deck.deal)
       display_dealers_last_card
       display_dealers_total
     end
+    puts "Dealer stays.\n\n" unless dealer.busted?
   end
 
   def result
