@@ -42,12 +42,25 @@ module Handable
   end
 end
 
+class Score
+  attr_reader :total
+
+  def initialize
+    @total = 0
+  end
+
+  def add_point
+    @total += 1
+  end
+end
+
 class Participant
-  attr_reader :hand, :name
+  attr_reader :hand, :name, :score
   include Handable
 
   def initialize
     reset
+    @score = Score.new
   end
 
   def reset
@@ -250,10 +263,28 @@ class Game
     puts "#{dealer_name} stays.\n\n" unless dealer.busted?
   end
 
+  def dealer_winner?
+    dealer.winner?(player) || player.busted?
+  end
+
+  def player_winner?
+    player.winner?(dealer) || dealer.busted?
+  end
+
+  def keep_score
+    dealer.score.add_point if dealer_winner?
+    player.score.add_point if player_winner?
+  end
+
+  def participant_scores
+    "#{player_name} wins: #{player.score.total}    |" \
+    "#{dealer_name} wins: #{dealer.score.total}"
+  end
+
   def result
-    if dealer.winner?(player) || player.busted?
+    if dealer_winner?
       "*** #{dealer_name} Won! ***"
-    elsif player.winner?(dealer) || dealer.busted?
+    elsif player_winner?
       "*** #{player_name} Won! ***"
     else
       "*** It's a tie! ***"
@@ -264,10 +295,11 @@ class Game
     puts player.busted? ? "#{player_name} is Bust!" : "#{dealer_name} is Bust!"
   end
 
-  def display_result
+  def display_result_and_scores
     puts busted_msg if player.busted? || dealer.busted?
     puts result
     puts ""
+    puts participant_scores
   end
 
   def play_again?
@@ -296,7 +328,8 @@ class Game
       display_cards_and_players_total
       player_turn
       dealer_turn unless player.busted?
-      display_result
+      keep_score
+      display_result_and_scores
       break unless play_again?
       reset
     end
