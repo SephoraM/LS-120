@@ -4,13 +4,7 @@ module Clearable
   end
 end
 
-class Participant
-  attr_reader :hand
-
-  def initialize
-    reset
-  end
-
+module Handable
   def hit(card)
     hand << card
   end
@@ -46,6 +40,15 @@ class Participant
   def tie?(other)
     total == other.total
   end
+end
+
+class Participant
+  attr_reader :hand, :name
+  include Handable
+
+  def initialize
+    reset
+  end
 
   def reset
     @hand = []
@@ -54,7 +57,6 @@ end
 
 class Player < Participant
   include Clearable
-  attr_reader :name
 
   def initialize
     super
@@ -76,6 +78,11 @@ class Player < Participant
 end
 
 class Dealer < Participant
+  def initialize
+    super
+    @name = ['Hal', 'Sonny', 'Robo', 'Jack', 'Wall-e'].sample
+  end
+
   def under_eighteen?
     total < 18
   end
@@ -127,12 +134,14 @@ end
 
 class Game
   include Clearable
-  attr_reader :player, :dealer, :deck
+  attr_reader :player, :dealer, :deck, :dealer_name, :player_name
 
   def initialize
     @player = Player.new
     @dealer = Dealer.new
     @deck = Deck.new
+    @dealer_name = dealer.name
+    @player_name = player.name
   end
 
   def deal_cards
@@ -141,33 +150,35 @@ class Game
   end
 
   def display_welcome_message
-    puts "Hello, #{player.name}. Welcome to the game of Twenty-one."
+    puts "Hello, #{player_name}. Welcome to the game of Twenty-one." \
+         " #{dealer_name} will be your dealer today.\n\n"
     puts "Try to get as close to 21 as possible, without going over." \
-         " If you go over 21, or the dealer is closer to 21, you lose.\n\n"
+         " If you go over 21, or #{dealer_name} is closer to 21, you lose.\n\n"
     puts "Good Luck! Let's begin.\n\n"
   end
 
   def display_goodbye_message
     clear
-    puts "Goodbye, #{player.name}! Thanks for playing.\n\n"
+    puts "Goodbye, #{player_name}! Thanks for playing.\n\n"
   end
 
   def display_dealers_first_card
-    puts ">> The dealer's card: #{dealer.hand.first}"
+    puts ">> #{dealer_name}'s card: #{dealer.hand.first}"
     puts ""
   end
 
   def display_dealers_last_card
-    puts ">> The dealer's newest card: #{dealer.hand.last}"
+    puts ">> #{dealer_name}'s newest card: #{dealer.hand.last}"
     puts ""
   end
 
   def display_dealers_cards
-    puts ">> Dealer's cards: #{dealer.hand.map { |card| card }.join(', ')}\n\n"
+    puts ">> #{dealer_name}'s cards:" \
+         " #{dealer.hand.map { |card| card }.join(', ')}\n\n"
   end
 
   def display_players_cards
-    puts ">> #{player.name}'s cards:" \
+    puts ">> #{player_name}'s cards:" \
          " #{player.hand.map { |card| card }.join(', ')}\n\n"
   end
 
@@ -181,22 +192,27 @@ class Game
     display_dealers_cards
   end
 
-  def display_two_totals
-    puts "Having an ace has given #{player.name} two possible values: " \
-         "#{player.small_total} or #{player.total}\n\n"
+  def display_two_totals(participant)
+    puts "Having an ace has given #{participant.name} two possible values: " \
+         "#{participant.small_total} or #{participant.total}\n\n"
   end
 
   def display_players_total
-    puts "The total value of #{player.name}'s cards: #{player.total}\n\n"
+    puts "The total value of #{player_name}'s cards: #{player.total}\n\n"
   end
 
   def display_dealers_total
-    puts "The total value of the dealer's cards: #{dealer.total}\n\n"
+    puts "The total value of #{dealer_name}'s cards: #{dealer.total}\n\n"
+  end
+
+  def display_dealers_last_card_and_total
+    display_dealers_last_card
+    dealer.two_totals? ? display_two_totals(dealer) : display_dealers_total
   end
 
   def display_cards_and_players_total
     show_initial_cards
-    player.two_totals? ? display_two_totals : display_players_total
+    player.two_totals? ? display_two_totals(player) : display_players_total
   end
 
   def display_cards_and_both_totals
@@ -227,29 +243,28 @@ class Game
     display_cards_and_both_totals
     loop do
       break unless dealer.under_eighteen?
-      puts "...The dealer hits...\n\n"
+      puts "...#{dealer_name} deals himself another card...\n\n"
       dealer.hit(deck.deal)
-      display_dealers_last_card
-      display_dealers_total
+      display_dealers_last_card_and_total
     end
-    puts "Dealer stays.\n\n" unless dealer.busted?
+    puts "#{dealer_name} stays.\n\n" unless dealer.busted?
   end
 
   def result
     if dealer.winner?(player) || player.busted?
-      "*** The Dealer Won! ***"
+      "*** #{dealer_name} Won! ***"
     elsif player.winner?(dealer) || dealer.busted?
-      "*** #{player.name} Won! ***"
+      "*** #{player_name} Won! ***"
     else
       "*** It's a tie! ***"
     end
   end
 
   def busted_msg
-    player.busted? ? "#{player.name} is Bust!\n\n" : "Dealer is Bust!\n\n"
+    puts player.busted? ? "#{player_name} is Bust!" : "#{dealer_name} is Bust!"
   end
 
-  def show_result
+  def display_result
     puts busted_msg if player.busted? || dealer.busted?
     puts result
     puts ""
@@ -281,7 +296,7 @@ class Game
       display_cards_and_players_total
       player_turn
       dealer_turn unless player.busted?
-      show_result
+      display_result
       break unless play_again?
       reset
     end
