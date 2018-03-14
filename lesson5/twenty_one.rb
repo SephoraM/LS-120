@@ -276,30 +276,36 @@ class Game
     player.score.add_point if player_winner?
   end
 
-  def participant_scores
-    "#{player_name} wins: #{player.score.total}    |" \
-    "#{dealer_name} wins: #{dealer.score.total}"
+  def display_participant_scores
+    puts "#{player_name} wins: #{player.score.total}    |" \
+         "#{dealer_name} wins: #{dealer.score.total}"
   end
 
-  def result
+  def display_result
     if dealer_winner?
-      "*** #{dealer_name} Won! ***"
+      puts "*** #{dealer_name} Won! ***"
     elsif player_winner?
-      "*** #{player_name} Won! ***"
+      puts "*** #{player_name} Won! ***"
     else
-      "*** It's a tie! ***"
+      puts "*** It's a tie! ***"
     end
   end
 
-  def busted_msg
-    puts player.busted? ? "#{player_name} is Bust!" : "#{dealer_name} is Bust!"
+  def someone_busted?
+    player.busted? || dealer.busted?
+  end
+
+  def display_busted_msg
+    puts "#{player_name} is Bust!" if player.busted?
+    puts "#{dealer_name} is Bust!" if dealer.busted?
+    puts ""
   end
 
   def display_result_and_scores
-    puts busted_msg if player.busted? || dealer.busted?
-    puts result
+    display_busted_msg if someone_busted?
+    display_result
     puts ""
-    puts participant_scores
+    display_participant_scores
   end
 
   def play_again?
