@@ -1,10 +1,4 @@
-module Clearable
-  def clear
-    system('clear') || system('cls')
-  end
-end
-
-module Handable
+module Hand
   def hit(card)
     hand << card
   end
@@ -56,7 +50,7 @@ end
 
 class Participant
   attr_reader :hand, :name, :score
-  include Handable
+  include Hand
 
   def initialize
     reset
@@ -69,15 +63,12 @@ class Participant
 end
 
 class Player < Participant
-  include Clearable
-
   def initialize
     super
     @name = username
   end
 
   def username
-    clear
     name = nil
     puts "Heya!"
     loop do
@@ -146,7 +137,6 @@ class Card
 end
 
 class Game
-  include Clearable
   attr_reader :player, :dealer, :deck, :dealer_name, :player_name
 
   def initialize
@@ -155,6 +145,10 @@ class Game
     @deck = Deck.new
     @dealer_name = dealer.name
     @player_name = player.name
+  end
+
+  def clear
+    system('clear') || system('cls')
   end
 
   def deal_cards
@@ -167,11 +161,11 @@ class Game
          " #{dealer_name} will be your dealer today.\n\n"
     puts "Try to get as close to 21 as possible, without going over." \
          " If you go over 21, or #{dealer_name} is closer to 21, you lose.\n\n"
-    puts "Good Luck! Let's begin.\n\n"
+    puts "We'll keep track of the number of your wins and losses so you'll " \
+         "know if today is your lucky day.\n\n"
   end
 
   def display_goodbye_message
-    clear
     puts "Goodbye, #{player_name}! Thanks for playing.\n\n"
   end
 
@@ -319,7 +313,7 @@ class Game
     answer == 'y'
   end
 
-  def reset
+  def clear_and_reset
     clear
     dealer.reset
     player.reset
@@ -337,8 +331,9 @@ class Game
       keep_score
       display_result_and_scores
       break unless play_again?
-      reset
+      clear_and_reset
     end
+    clear
     display_goodbye_message
   end
 end
