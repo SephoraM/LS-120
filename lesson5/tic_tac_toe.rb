@@ -215,7 +215,6 @@ class TTTGame
 
   def choose_first_player
     self.current_player = human_player_first? ? human.marker : computer.marker
-    clear
   end
 
   def determine_first_player
@@ -392,7 +391,7 @@ class TTTGame
 
     loop do
       determine_first_player
-      display_board
+      clear_screen_and_display_board
 
       loop do
         current_player_moves
